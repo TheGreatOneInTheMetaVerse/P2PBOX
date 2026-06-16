@@ -84,7 +84,6 @@ const SUGGESTED_FOLLOWS = [
   { npub: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m', name: 'fiatjaf' },
   { npub: 'npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft', name: 'jb55' },
   { npub: 'npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6', name: 'matt' },
-  { npub: 'npub1qny3tkh0acuzh5t6n0m3t5c8z9v7v2z8p5x3j5k7m9n0p2r4s6t8u0v2w4x', name: 'nostrica' },
 ]
 
 // (removed unused SHORT_RELAYS)
@@ -344,11 +343,11 @@ const P2PBOXApp: React.FC = () => {
       try { subRef.current.close() } catch {}
     }
 
-    const since = Math.floor(Date.now() / 1000) - 60 * 60 * 8 // last ~8 hours to keep volume sane
+    const since = Math.floor(Date.now() / 1000) - 60 * 60 * 48 // last 48 hours for better discovery
 
     // Public notes + replies
     const noteFilters: Filter[] = [
-      { kinds: [1], limit: 100, since },
+      { kinds: [1], limit: 150, since },
       { kinds: [0], authors: [pubkey], limit: 1 },
     ]
     const noteSub = pool.subscribeMany(currentRelays, noteFilters as any, {
@@ -1073,7 +1072,9 @@ const P2PBOXApp: React.FC = () => {
                 <div className="space-y-3">
                   {displayNotes.length === 0 && (
                     <div className="p2pbox-surface border p2pbox-border rounded-3xl p-8 text-center text-sm text-zinc-400">
-                      No posts yet. Be the first to say something.
+                      No recent posts loaded (last 48h filter).<br />
+                      Try clicking <strong>"Older"</strong> below, or post something in the composer above.<br />
+                      <span className="text-xs mt-2 block">Tip: Follow accounts from the right sidebar to see content in the "Following" tab.</span>
                     </div>
                   )}
 
@@ -1172,9 +1173,26 @@ const P2PBOXApp: React.FC = () => {
                     <div className="font-medium text-sm">Direct Messages</div>
                     <button onClick={() => setSelectedChat(null)} className="text-xs px-2 py-0.5 rounded bg-white/5">New</button>
                   </div>
+                  {pk && (
+                    <div className="px-3 pb-2 -mt-1">
+                      <button
+                        onClick={() => copy(fullNpub(pk), 'Your npub copied — send a DM to it from another client to test!')}
+                        className="text-[10px] px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 w-full text-left"
+                      >
+                        Copy your npub to test DMs from other apps →
+                      </button>
+                    </div>
+                  )}
 
                   {conversations.length === 0 && (
-                    <div className="text-xs text-zinc-500 px-3 py-6">No messages yet. Start a conversation from any profile.</div>
+                    <div className="text-xs text-zinc-400 px-3 py-4 leading-relaxed">
+                      No messages yet.<br /><br />
+                      <strong>To test real chat right now:</strong><br />
+                      1. Copy your npub (click the pill at top or go to Profile tab)<br />
+                      2. Go to <a href="https://primal.net" target="_blank" className="text-violet-400 underline">primal.net</a> or Damus mobile app<br />
+                      3. Paste your npub and send yourself a DM<br />
+                      4. Come back — it will appear here if the relays deliver it.
+                    </div>
                   )}
 
                   {conversations.map((c) => {
@@ -1227,7 +1245,8 @@ const P2PBOXApp: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   {!selectedChat ? (
                     <div className="p2pbox-surface border p2pbox-border rounded-3xl p-8 text-sm text-zinc-400">
-                      Select a conversation or paste an npub on the left to start a private end-to-end encrypted chat.
+                      Select a conversation from the left or paste an npub to start a private end-to-end encrypted chat.<br /><br />
+                      <strong>Tip:</strong> Click any "DM" button on posts in the Feed tab to start chatting with that person.
                     </div>
                   ) : (
                     <div className="p2pbox-surface border p2pbox-border rounded-3xl flex flex-col h-[620px]">
