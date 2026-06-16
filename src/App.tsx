@@ -205,6 +205,7 @@ const P2PBOXApp: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [testChatPub, setTestChatPub] = useState<string | null>(null) // for local demo chat
+  const [testDms, setTestDms] = useState<DM[]>([]) // separate from real network DMs
 
   // Nostr
   const poolRef = useRef<SimplePool | null>(null)
@@ -252,6 +253,8 @@ const P2PBOXApp: React.FC = () => {
     const map = new Map<string, { last: number; preview: string; count: number }>()
     for (const dm of dms) {
       const other = dm.pubkey
+      // skip test demo keys from real network list
+      if (testChatPub && other === testChatPub) continue
       const prev = map.get(other)
       if (!prev || dm.created_at > prev.last) {
         map.set(other, {
@@ -264,14 +267,15 @@ const P2PBOXApp: React.FC = () => {
     return Array.from(map.entries())
       .sort((a, b) => b[1].last - a[1].last)
       .map(([pubkey, meta]) => ({ pubkey, ...meta }))
-  }, [dms])
+  }, [dms, testChatPub])
 
   const currentChatMessages = useMemo(() => {
     if (!selectedChat) return []
-    return dms
+    const sourceDms = (testChatPub && selectedChat === testChatPub) ? testDms : dms
+    return sourceDms
       .filter((d) => d.pubkey === selectedChat)
       .sort((a, b) => a.created_at - b.created_at)
-  }, [dms, selectedChat])
+  }, [dms, testDms, selectedChat, testChatPub])
 
   const selectedProfile = selectedChat ? profiles[selectedChat] : null
 
@@ -369,6 +373,15 @@ const P2PBOXApp: React.FC = () => {
     ]
     const dmSub = pool.subscribeMany(currentRelays, dmFilters as any, {
       onevent(evt) { handleDMEvent(evt, pubkey) },
+    })
+
+    // Explicitly load recent DM history so that "log back in" shows previous real network conversations
+    // (subscriptions deliver live + recent matching events, but explicit query ensures history on reload)
+    pool.querySync(currentRelays, [
+      { kinds: [4], '#p': [pubkey], since: dmSince },
+      { kinds: [4], authors: [pubkey], since: dmSince },
+    ] as any).then((events) => {
+      events.forEach((evt) => handleDMEvent(evt, pubkey))
     })
 
     // Fetch profiles of people we follow + recent note authors (throttled)
@@ -584,7 +597,7 @@ const P2PBOXApp: React.FC = () => {
         outgoing: true,
         raw: null,
       }
-      setDms((prev) => [...prev, outgoing])
+      setTestDms((prev) => [...prev, outgoing])
       setDmText('')
 
       // Simulate a quick reply from the test user after a short delay
@@ -604,7 +617,7 @@ const P2PBOXApp: React.FC = () => {
           outgoing: false,
           raw: null,
         }
-        setDms((prev) => [...prev, reply])
+        setTestDms((prev) => [...prev, reply])
       }, 600)
       return
     }
@@ -710,7 +723,9 @@ const P2PBOXApp: React.FC = () => {
     // reset data
     setNotes([])
     setDms([])
+    setTestDms([])
     setFollows([])
+    setTestChatPub(null)
     seenIds.current.clear()
     repliesMap.current = {}
 
@@ -773,6 +788,7 @@ const P2PBOXApp: React.FC = () => {
     setUseExtension(false)
     setNotes([])
     setDms([])
+    setTestDms([])
     setSelectedChat(null)
     setFollows([])
     setProfiles({})
@@ -839,7 +855,7 @@ const P2PBOXApp: React.FC = () => {
       outgoing: false,
       raw: null,
     }
-    setDms((prev) => [...prev, welcome])
+    setTestDms([welcome])
     showToast('Started local test chat — messages here stay in this browser tab only', 'info')
   }
 
@@ -1268,7 +1284,20 @@ const P2PBOXApp: React.FC = () => {
                     </div>
                   )}
 
-                  {conversations.length === 0 && (
+                  {testChatPub && (
+                    <div
+                      onClick={() => setSelectedChat(testChatPub)}
+                      className={`px-3 py-2.5 rounded-2xl flex gap-3 cursor-pointer mt-1 ${selectedChat === testChatPub ? 'bg-violet-500/20 border border-violet-500/30' : 'hover:bg-white/5 bg-white/5'}`}
+                    >
+                      <div className="avatar w-8 h-8 mt-0.5"><img src={getAvatarUrl(testChatPub)} alt="" /></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium flex items-center gap-2 text-violet-300">Test User <span className="text-[9px] px-1 py-0 bg-violet-500/30 rounded">DEMO</span></div>
+                        <div className="text-xs text-zinc-400 truncate">Local only (no network)</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {conversations.length === 0 && !testChatPub && (
                     <div className="text-xs text-zinc-400 px-3 py-4 leading-relaxed">
                       No messages yet.<br /><br />
                       <strong>To test real chat right now:</strong><br />
@@ -1349,10 +1378,20 @@ const P2PBOXApp: React.FC = () => {
                         <button onClick={() => setSelectedChat(null)}><X className="w-4 h-4" /></button>
                       </div>
 
+                      {testChatPub && selectedChat === testChatPub && (
+                        <div className="px-4 py-1 bg-violet-500/10 text-violet-300 text-xs text-center border-b border-white/10">
+                          LOCAL DEMO ONLY — Messages are not sent to the Nostr network
+                        </div>
+                      )}
+
                       {/* Messages */}
                       <div className="flex-1 overflow-auto p-4 space-y-3 text-sm" id="chat-scroll">
                         {currentChatMessages.length === 0 && (
-                          <div className="text-xs text-center py-8 text-zinc-500">Encrypted chat between you two. Messages are only visible to participants.</div>
+                          <div className="text-xs text-center py-8 text-zinc-500">
+                            {testChatPub && selectedChat === testChatPub 
+                              ? "Local demo chat. Send a message to see simulated replies."
+                              : "Encrypted chat between you two. Messages are only visible to participants."}
+                          </div>
                         )}
                         {currentChatMessages.map((msg, idx) => (
                           <div key={idx} className={`flex ${msg.outgoing ? 'justify-end' : ''}`}>
