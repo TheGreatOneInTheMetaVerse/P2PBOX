@@ -66,12 +66,9 @@ const P2PBOXApp: React.FC = () => {
   const notes = useMemo(()=>evs.filter((e:any)=>e.kind===1).sort((a:any,b:any)=>b.created_at-a.created_at).slice(0,180),[evs])
   const realDms = useMemo(()=>{ if(!pk) return []; return evs.filter((e:any)=>e.kind===4).map((e:any)=>{ const out=e.pubkey===pk; const p=e.tags?.find((t:any)=>t[0]==='p')?.[1]||''; return {id:e.id,pubkey:out?p:e.pubkey,created_at:e.created_at,content:e.content,outgoing:out,raw:e} }).sort((a:any,b:any)=>a.created_at-b.created_at) },[evs,pk])
 
-  const [tPub, setTPub] = useState<string|null>(null)
-  const [tDms, setTDms] = useState<any[]>([])
   const [sel, setSel] = useState<string|null>(null)
   const [comp, setComp] = useState('')
   const [dmt, setDmt] = useState('')
-  const [onb, setOnb] = useState(true)
   const [tsts, setTsts] = useState<any[]>([])
 
   const toast = (m:string) => { const id=Date.now(); setTsts(p=>[...p,{id,m}]); setTimeout(()=>setTsts(p=>p.filter(x=>x.id!==id)),2800) }
@@ -82,86 +79,116 @@ const P2PBOXApp: React.FC = () => {
     const svc = getSvc(); svc.updateRelays(st.relays)
     svc.subscribe([ {kinds:[1],limit:120,since:Math.floor(Date.now()/1000)-60*60*48}, {kinds:[4],'#p':[p],since:Math.floor(Date.now()/1000)-60*60*24*7}, {kinds:[4],authors:[p],since:Math.floor(Date.now()/1000)-60*60*24*7} ], (e:any)=>{ if(verifyEvent(e)) dis({type:'ADD_EVENT',payload:e}) })
     svc.query([{kinds:[4],'#p':[p]},{kinds:[4],authors:[p]}],100).then(es=>es.forEach(e=>{if(verifyEvent(e)) dis({type:'ADD_EVENT',payload:e})}))
-    setOnb(false)
   }
 
   const pubNote = async (c:string) => { if(!sk||!key.pk) return; const e=finalizeEvent({kind:1,created_at:Math.floor(Date.now()/1000),tags:[],content:c},sk); const ok=await getSvc().publish(e); if(ok) dis({type:'ADD_EVENT',payload:e}); return ok }
   const sendNetDM = async (to:string, txt:string) => { if(!sk||!key.pk) return false; const ct = await getSvc().enc(sk,to,txt); const e=finalizeEvent({kind:4,created_at:Math.floor(Date.now()/1000),tags:[['p',to]],content:ct},sk); const ok=await getSvc().publish(e); if(ok) dis({type:'ADD_EVENT',payload:e}); return ok }
-
-  const startDemo = () => { const tp = getPublicKey(generateSecretKey()); setTPub(tp); setSel(tp); setTDms([{id:'d1',pubkey:tp,created_at:Date.now()/1000,content:'LOCAL DEMO — nothing is sent to Nostr. Send a message to see it work instantly.',outgoing:false,raw:null}]) }
 
   useEffect(() => {
     const s = localStorage.getItem('p2pbox:sk')
     if (s && !pk) { try { const b = hexToBytes(s); setKey(b, getPublicKey(b)) } catch {} }
   }, [pk])
 
-  const newId = () => { const s=generateSecretKey(); setKey(s,getPublicKey(s)); setTDms([]); setTPub(null); setSel(null) }
-  const logOut = () => { getSvc().closeAll(); localStorage.removeItem('p2pbox:sk'); dis({type:'CLEAR'} as any); setTPub(null); setTDms([]); setSel(null); setOnb(true) }
+  const newId = () => { const s=generateSecretKey(); setKey(s,getPublicKey(s)); setSel(null) }
+  const logOut = () => { getSvc().closeAll(); localStorage.removeItem('p2pbox:sk'); dis({type:'CLEAR'} as any); setSel(null) }
 
   const send = async () => {
     const t = dmt.trim(); if(!t || !sel || !key.pk) return
-    if (tPub && sel === tPub) {
-      setTDms(p=>[...p, {id:'o'+Date.now(),pubkey:sel,created_at:Date.now()/1000,content:t,outgoing:true,raw:null}])
-      setDmt('')
-      setTimeout(()=> setTDms(p=>[...p,{id:'i'+Date.now(),pubkey:sel,created_at:Date.now()/1000,content:'Demo reply. The UI works.',outgoing:false,raw:null}]), 500)
-      return
-    }
     const ok = await sendNetDM(sel, t)
     if(ok){ setDmt(''); toast('Sent on real Nostr') }
   }
 
   const post = () => { if(comp.trim()) pubNote(comp.trim()).then(()=>setComp('')) }
 
-  const currMsgs = (tPub && sel===tPub) ? tDms : realDms.filter((d:any)=>d.pubkey===sel)
+  const currMsgs = realDms.filter((d:any)=>d.pubkey===sel)
+
+  // Simple decryption for display in real chat (runs on render for small lists)
+  const [decrypted, setDecrypted] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!pk || !sk || !sel) return
+    const toDecrypt = currMsgs.filter((m:any) => !decrypted[m.id] && m.content && m.content.length > 20)
+    if (toDecrypt.length === 0) return
+
+    ;(async () => {
+      const updates: any = {}
+      for (const m of toDecrypt) {
+        try {
+          const other = m.outgoing ? sel : m.pubkey
+          const plain = await getSvc().dec(sk, other, m.content)
+          updates[m.id] = plain
+        } catch {
+          updates[m.id] = '[encrypted]'
+        }
+      }
+      if (Object.keys(updates).length) setDecrypted(prev => ({...prev, ...updates}))
+    })()
+  }, [currMsgs, sel, pk, sk, decrypted])
 
   return (
     <div className="min-h-screen bg-[#0b0b10] text-zinc-200 p-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-3xl font-semibold mb-1">P2PBOX <span className="text-xs align-super text-violet-400">NEW ARCHITECTURE</span></div>
-        <div className="text-xs opacity-60 mb-6">NostrService + persistent cache (real log back) + isolated demo. Low-level hidden.</div>
+        <div className="text-3xl font-semibold mb-1">P2PBOX</div>
+        <div className="text-xs opacity-60 mb-6">Real decentralized P2P social chat on Nostr. No demos. Pure network.</div>
 
         {!pk ? (
           <button onClick={newId} className="px-6 py-3 bg-violet-600 rounded-2xl">Generate Real Persistent Nostr Key</button>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Feed */}
             <div className="bg-[#111116] border border-[#23232a] rounded-3xl p-4">
-              <div className="font-medium mb-2">Feed (real network)</div>
+              <div className="font-medium mb-2">Feed (real Nostr network)</div>
               <div className="flex gap-2 mb-3">
-                <input value={comp} onChange={e=>setComp(e.target.value)} className="flex-1 bg-black/30 border p-2 rounded text-sm" placeholder="Post to Nostr..." />
+                <input value={comp} onChange={e=>setComp(e.target.value)} className="flex-1 bg-black/30 border p-2 rounded text-sm" placeholder="Post to the network..." />
                 <button onClick={post} className="px-4 bg-violet-600 rounded text-sm">Post</button>
               </div>
               <div className="space-y-2 text-sm max-h-80 overflow-auto">
-                {notes.length===0 && <div className="opacity-50">No posts from network yet.</div>}
+                {notes.length===0 && <div className="opacity-50">No posts loaded yet. Post something above.</div>}
                 {notes.slice(0,8).map((n:any,i:number)=>
                   <div key={i} className="border-b border-white/10 pb-1 text-sm">
                     {n.content}
-                    <div onClick={()=>{setSel(n.pubkey);}} className="text-violet-400 text-xs cursor-pointer">DM</div>
+                    <div onClick={()=>{setSel(n.pubkey);}} className="text-violet-400 text-xs cursor-pointer">Message this person</div>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Real Messages only */}
             <div className="bg-[#111116] border border-[#23232a] rounded-3xl p-4 flex flex-col">
-              <div className="font-medium mb-1">Messages</div>
-              <button onClick={startDemo} className="text-xs self-start px-2 py-0.5 bg-violet-500/20 rounded mb-2">Start Local Demo Chat (instant, fake)</button>
+              <div className="font-medium mb-1 flex items-center justify-between">
+                <span>Messages (real Nostr)</span>
+                <button onClick={() => copy(nip19.npubEncode(pk), 'Your real npub copied — send DM from Primal.net or Damus to test')} className="text-[10px] px-2 py-0.5 bg-white/5 rounded">Copy my npub</button>
+              </div>
 
-              {tPub && <div onClick={()=>setSel(tPub)} className={`text-sm p-1 cursor-pointer rounded ${sel===tPub?'bg-violet-500/20':''}`}>Test User <span className="text-[9px] bg-violet-500/30 px-1 rounded">DEMO</span></div>}
+              {realDms.length === 0 && (
+                <div className="text-xs text-zinc-400 py-3">
+                  No real messages yet.<br /><br />
+                  <strong>To test real chat:</strong><br />
+                  1. Click "Copy my npub" above<br />
+                  2. Go to <a href="https://primal.net" target="_blank" className="text-violet-400 underline">primal.net</a> (or Damus app)<br />
+                  3. Paste your npub and send a DM<br />
+                  4. Come back — it will appear here (thanks to cache + live subs)
+                </div>
+              )}
 
-              {realDms.slice(0,4).map((c:any,i:number)=>
+              {realDms.slice(0,5).map((c:any,i:number)=>
                 <div key={i} onClick={()=>setSel(c.pubkey)} className={`text-sm p-1 cursor-pointer rounded ${sel===c.pubkey?'bg-white/10':''}`}>{c.pubkey.slice(0,10)} — {c.content.slice(0,30)}</div>
               )}
 
               {sel && (
                 <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs mb-1">Chat with {sel.slice(0,10)}</div>
-                  {tPub && sel===tPub && <div className="text-violet-400 text-xs mb-1">LOCAL DEMO ONLY</div>}
+                  <div className="text-xs mb-1">Real chat with {sel.slice(0,10)}</div>
                   <div className="h-28 overflow-auto bg-black/30 p-2 text-xs mb-2 rounded">
-                    {currMsgs.map((m:any,i:number)=><div key={i} className={m.outgoing?'text-right':''}>{m.content}</div>)}
+                    {currMsgs.map((m:any,i:number) => {
+                      const plain = decrypted[m.id] || (m.content.length < 30 ? m.content : '[encrypted - will decrypt on load]')
+                      return <div key={i} className={m.outgoing ? 'text-right' : ''}>{plain}</div>
+                    })}
                   </div>
                   <div className="flex">
                     <input value={dmt} onChange={e=>setDmt(e.target.value)} className="flex-1 bg-black/30 text-sm p-1 rounded" onKeyDown={e=>e.key==='Enter'&&send()} />
                     <button onClick={send} className="ml-1 px-3 bg-violet-600 rounded text-sm">Send</button>
                   </div>
+                  <div className="text-[10px] opacity-50 mt-1">Real encrypted DMs via Nostr relays (NIP-44 + NIP-04 fallback).</div>
                 </div>
               )}
             </div>
@@ -169,12 +196,12 @@ const P2PBOXApp: React.FC = () => {
         )}
 
         <div className="mt-6 text-xs opacity-50">
-          Real chat uses the Nostr network. Local demo is fake and isolated. Log back in works because of the persistent event cache.
-          Copy your npub (when logged in) and test with Primal.net or another client for true cross-app P2P.
+          Pure real P2P on Nostr. Messages persist across reloads via local cache + network.
+          Everything you send or receive is on the actual decentralized network.
         </div>
       </div>
 
-      <div className="fixed bottom-3 right-3 text-xs bg-zinc-900 border px-2 py-px rounded">{pk ? 'Real Nostr connected' : 'No key'}</div>
+      <div className="fixed bottom-3 right-3 text-xs bg-zinc-900 border px-2 py-px rounded">{pk ? 'Live on Nostr' : 'No key'}</div>
     </div>
   )
 }
