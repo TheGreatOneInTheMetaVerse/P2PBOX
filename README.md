@@ -1,67 +1,115 @@
-# P2PBOX — Decentralized P2P Social Chat
+# P2PBOX
 
-A beautiful, fully-functional decentralized social + chat webapp built on the **Nostr protocol**.
+**Decentralized P2P Social Chat** — built on the Nostr protocol.
 
-- **True decentralization**: No central servers own your social graph or messages. Data is published to open relays.
-- **Cryptographic identity**: You control your keys (nsec/npub). Works great with or without a NIP-07 browser extension (Alby, nos2x, etc.).
-- **Public feed**: Real-time global notes (kind 1). Post, reply, follow, hashtag filter.
-- **Private messages**: End-to-end encrypted DMs (NIP-04) — only you and the recipient can read.
-- **Profiles & follows**: Publish your profile (kind 0) and optionally your contact list (kind 3).
-- **Multi-relay**: Broadcasts to many public relays. Add your own.
+A clean, fully client-side webapp for social posts and private encrypted messaging. No backend. No central servers own your data. You control your keys.
 
-> This is a real client that talks directly to the live Nostr network. Posts you make here will be visible on any other Nostr client (Damus, Primal, Iris, etc.) if the relays overlap.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Run it
+## Features
+
+- **Public social feed** — Post notes (kind 1), replies, hashtag filtering, follow authors
+- **Private encrypted DMs** — 1:1 chats using NIP-04 encryption (only you and the recipient can read)
+- **Sovereign identity** — Generate keys or use a NIP-07 browser extension (Alby, nos2x, etc.)
+- **Publish your profile** — Set name, bio, avatar (kind 0) visible across the Nostr network
+- **Multi-relay support** — Connect to many public relays or add your own for better reach and censorship resistance
+- **Real interoperability** — Everything you post is standard Nostr events and appears in other clients (Damus, Primal, Iris, etc.)
+
+> This is a real Nostr client. Posts and messages are broadcast to the open network.
+
+## Run Locally
 
 ```bash
-cd p2pbox
+# Clone the repository
+git clone https://github.com/TheGreatOneInTheMetaVerse/P2PBOX.git
+cd P2PBOX
+
+# Install dependencies
 npm install
+
+# Start the development server
 npm run dev
 ```
 
-Open http://localhost:5173
+Open **http://localhost:5173** in your browser.
 
-## How to use
+### First time usage
 
-1. On first load choose:
-   - **Generate new identity** — creates fresh keys locally (recommended for demo)
-   - **Login with nsec** — paste your existing private key
-   - **Browser extension** — connect via NIP-07 (best security)
+1. Choose how to log in:
+   - **Generate new identity** (recommended for testing)
+   - Paste an existing `nsec...` private key
+   - Connect a browser extension (NIP-07)
 
-2. The app immediately connects to several reliable public relays and subscribes to recent activity.
+2. The app connects automatically to several reliable public Nostr relays.
 
-3. **Feed**: Post public notes. Click hashtags to filter. Follow authors directly from their posts. Replies are collected inline.
+3. Start posting to the global feed or switch to the **Messages** tab for encrypted chats.
 
-4. **Messages**: Click "DM" on any post or use the sidebar to start an encrypted chat by npub. Messages are signed + encrypted before leaving your browser.
+## Build for Production
 
-5. **Profile**: Edit display name / bio / avatar and publish it to the network.
+```bash
+npm run build
+```
 
-6. **Relays**: Add or remove relays in Settings. More relays = better reach and censorship resistance.
+The production files will be in the `dist/` folder. This is a static single-page app — you can deploy it anywhere that hosts static files:
 
-## Under the hood
+- **GitHub Pages**
+- Vercel / Netlify / Cloudflare Pages (free & easy)
+- Any web server (Nginx, Apache, etc.)
 
-- React + Vite + TypeScript + Tailwind
-- `nostr-tools` — the standard tiny JS library for Nostr
-- `SimplePool` for relay connections and pub/sub
-- Events are validated with `verifyEvent`
-- DMs use NIP-04 encryption (widely compatible). Future versions can easily upgrade to NIP-44 + gift-wrapped events.
-- All follows/profiles are published as real Nostr events when you choose "publish".
+No backend or database is required.
 
-## Notes & Privacy
+## Project Structure
 
-- When using a generated/local key, the nsec lives only in your browser's localStorage. **Export a backup** and treat it like cash.
-- Using a NIP-07 extension is strongly recommended for day-to-day use (keys never touch the webapp).
-- There is no persistence server on our side — everything is P2P via relays.
+```
+P2PBOX/
+├── src/
+│   ├── App.tsx          # Main app (feed, DMs, profile, relays)
+│   ├── main.tsx
+│   └── index.css        # Dark theme + components
+├── public/
+├── package.json
+└── README.md
+```
 
-## Matrix alternative?
+**Tech stack**
+- React 19 + TypeScript + Vite
+- Tailwind CSS
+- nostr-tools (the standard lightweight Nostr library)
+- Pure client-side (all logic runs in the browser)
 
-This project chose the Nostr route because:
-- Extremely lightweight protocol (JSON over WebSocket)
-- Excellent JavaScript ecosystem
-- Native support for both social posts and private chats
-- True key-based sovereign identity (very "blockchain" in spirit)
-- No homeserver account registration needed
+## Under the Hood
 
-If you wanted a Matrix version instead, the same UI could be powered by `matrix-js-sdk` against a public homeserver (e.g. matrix.org) or a self-hosted Synapse. Nostr was picked here for a zero-config amazing P2P experience.
+- Uses `SimplePool` for connecting to multiple relays
+- All events are validated with `verifyEvent`
+- Public posts = kind 1, Profiles = kind 0, Follow lists = kind 3, DMs = kind 4 (NIP-04)
+- DMs are end-to-end encrypted before they ever leave your device
+- Keys are only stored in your browser's localStorage (export your backup!)
 
-Made with ❤️ for the decentralized web.
+## Privacy & Security Notes
+
+- **Local keys only** — When using the built-in key generator, your `nsec` lives only in `localStorage`. Always export a backup and treat it like a password.
+- **Best practice** — Use a NIP-07 extension (Alby, nos2x, Flamingo) so your private key never touches the web page.
+- **Relays** — Messages go to the relays you choose. You can run your own relay for maximum sovereignty.
+- No analytics, no tracking, no server logs.
+
+## License
+
+MIT License — see the [LICENSE](LICENSE) file.
+
+## Why Nostr?
+
+This project uses Nostr instead of Matrix or a blockchain because:
+
+- Extremely simple & lightweight (JSON over WebSocket)
+- Native support for both public social content and private encrypted chats
+- True cryptographic identity (pubkey = your identity)
+- No registration or homeserver account required
+- Works today with a huge ecosystem of clients and relays
+
+Made for the decentralized web. Enjoy P2PBOX!
+
+---
+
+**Repo**: https://github.com/TheGreatOneInTheMetaVerse/P2PBOX
+
+If you want to contribute, open an issue or PR. Feedback welcome!
