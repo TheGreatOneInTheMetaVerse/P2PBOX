@@ -358,7 +358,7 @@ const P2PBOXApp: React.FC = () => {
     })
 
     // Extra broader initial load so new users see real content immediately (no time filter for first batch)
-    pool.querySync(currentRelays, [{ kinds: [1], limit: 80 }]).then((events) => {
+    pool.querySync(currentRelays, [{ kinds: [1], limit: 80 }] as any).then((events) => {
       events.forEach(handleEvent)
     })
 
