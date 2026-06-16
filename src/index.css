@@ -10,17 +10,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Aether custom theme - dark, minimal, social */
-.aether-bg {
+/* P2PBOX custom theme - dark, minimal, social */
+.p2pbox-bg {
   background-color: #0b0b10;
 }
 
-.aether-surface {
+.p2pbox-surface {
   background-color: #111116;
   border: 1px solid #23232a;
 }
 
-.aether-border {
+.p2pbox-border {
   border-color: #23232a;
 }
 

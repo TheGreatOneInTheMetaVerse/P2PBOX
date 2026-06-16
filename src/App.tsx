@@ -178,7 +178,7 @@ function formatTime(ts: number): string {
   }
 }
 
-const AetherApp: React.FC = () => {
+const P2PBOXApp: React.FC = () => {
   // Identity
   const [sk, setSk] = useState<Uint8Array | null>(null)
   const [pk, setPk] = useState<string | null>(null)
@@ -214,11 +214,11 @@ const AetherApp: React.FC = () => {
 
   // Persist helpers
   const persist = (key: string, val: any) => {
-    try { localStorage.setItem(`aether:${key}`, JSON.stringify(val)) } catch {}
+    try { localStorage.setItem(`p2pbox:${key}`, JSON.stringify(val)) } catch {}
   }
   const load = <T,>(key: string, fallback: T): T => {
     try {
-      const v = localStorage.getItem(`aether:${key}`)
+      const v = localStorage.getItem(`p2pbox:${key}`)
       return v ? JSON.parse(v) : fallback
     } catch { return fallback }
   }
@@ -308,7 +308,7 @@ const AetherApp: React.FC = () => {
         setUseExtension(false)
       } catch (e) {
         console.warn('Failed to restore key', e)
-        localStorage.removeItem('aether:sk')
+        localStorage.removeItem('p2pbox:sk')
       }
     } else {
       // Check for extension on load
@@ -723,7 +723,7 @@ const AetherApp: React.FC = () => {
     if (subRef.current) {
       try { subRef.current.close() } catch {}
     }
-    localStorage.removeItem('aether:sk')
+    localStorage.removeItem('p2pbox:sk')
     setSk(null)
     setPk(null)
     setNsec(null)
@@ -815,11 +815,11 @@ const AetherApp: React.FC = () => {
       showToast('No local secret to export (using extension)', 'info')
       return
     }
-    const blob = new Blob([`Aether Nostr Backup\n\nnsec: ${nsec}\npub: ${npub}\n\nKeep this secret safe and never share it.`], { type: 'text/plain' })
+    const blob = new Blob([`P2PBOX Nostr Backup\n\nnsec: ${nsec}\npub: ${npub}\n\nKeep this secret safe and never share it.`], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `aether-backup-${(npub || 'key').slice(0, 12)}.txt`
+    a.download = `p2pbox-backup-${(npub || 'key').slice(0, 12)}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -852,14 +852,14 @@ const AetherApp: React.FC = () => {
 
   if (showOnboarding) {
     return (
-      <div className="min-h-screen aether-bg text-zinc-200 flex items-center justify-center p-6">
+      <div className="min-h-screen p2pbox-bg text-zinc-200 flex items-center justify-center p-6">
         <div className="max-w-md w-full">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-11 h-11 rounded-2xl bg-violet-600 flex items-center justify-center">
               <Key className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-3xl font-semibold tracking-tighter">Aether</div>
+              <div className="text-3xl font-semibold tracking-tighter">P2PBOX</div>
               <div className="text-xs text-zinc-500 -mt-1">DECENTRALIZED SOCIAL</div>
             </div>
           </div>
@@ -875,7 +875,7 @@ const AetherApp: React.FC = () => {
               <Key className="w-4 h-4" /> Generate new identity
             </button>
 
-            <div className="aether-surface border aether-border rounded-2xl p-4">
+            <div className="p2pbox-surface border p2pbox-border rounded-2xl p-4">
               <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">I already have keys</div>
               <div className="flex gap-2">
                 <input
@@ -920,7 +920,7 @@ const AetherApp: React.FC = () => {
 
   // Main App Shell
   return (
-    <div className="min-h-screen aether-bg text-zinc-200">
+    <div className="min-h-screen p2pbox-bg text-zinc-200">
       {/* Top bar */}
       <div className="sticky top-0 z-40 border-b border-white/10 bg-[#0b0b10]/95 backdrop-blur">
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
@@ -929,7 +929,7 @@ const AetherApp: React.FC = () => {
               <div className="w-8 h-8 rounded-2xl bg-violet-600 flex items-center justify-center">
                 <Globe className="w-4.5 h-4.5" />
               </div>
-              <div className="font-semibold tracking-tight text-xl">Aether</div>
+              <div className="font-semibold tracking-tight text-xl">P2PBOX</div>
             </div>
             <div className="hidden md:block text-xs px-2 py-px rounded bg-white/5 text-zinc-400">nostr</div>
           </div>
@@ -960,7 +960,7 @@ const AetherApp: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4 pt-4">
           {/* Sidebar Nav */}
           <div className="md:w-56 shrink-0">
-            <div className="aether-surface border aether-border rounded-3xl p-2 sticky top-20">
+            <div className="p2pbox-surface border p2pbox-border rounded-3xl p-2 sticky top-20">
               <div className="px-3 py-2 text-[10px] font-medium tracking-[1px] text-zinc-500">MENU</div>
 
               <button onClick={() => { setView('feed'); setTagFilter(null) }} className={`nav-item w-full ${view === 'feed' ? 'active' : ''}`}>
@@ -1027,7 +1027,7 @@ const AetherApp: React.FC = () => {
             {(view === 'feed' || view === 'following') && (
               <div>
                 {/* Composer */}
-                <div className="aether-surface border aether-border rounded-3xl p-4 mb-4">
+                <div className="p2pbox-surface border p2pbox-border rounded-3xl p-4 mb-4">
                   <div className="flex gap-3">
                     <div className="avatar mt-0.5">
                       {pk && <img src={getAvatarUrl(pk, getProfilePicture(pk))} alt="" />}
@@ -1072,7 +1072,7 @@ const AetherApp: React.FC = () => {
                 {/* Notes list */}
                 <div className="space-y-3">
                   {displayNotes.length === 0 && (
-                    <div className="aether-surface border aether-border rounded-3xl p-8 text-center text-sm text-zinc-400">
+                    <div className="p2pbox-surface border p2pbox-border rounded-3xl p-8 text-center text-sm text-zinc-400">
                       No posts yet. Be the first to say something.
                     </div>
                   )}
@@ -1167,7 +1167,7 @@ const AetherApp: React.FC = () => {
             {view === 'messages' && (
               <div className="flex gap-4">
                 {/* Conversations list */}
-                <div className="w-72 shrink-0 aether-surface border aether-border rounded-3xl p-2 h-fit sticky top-20">
+                <div className="w-72 shrink-0 p2pbox-surface border p2pbox-border rounded-3xl p-2 h-fit sticky top-20">
                   <div className="px-3 py-2 flex items-center justify-between">
                     <div className="font-medium text-sm">Direct Messages</div>
                     <button onClick={() => setSelectedChat(null)} className="text-xs px-2 py-0.5 rounded bg-white/5">New</button>
@@ -1226,11 +1226,11 @@ const AetherApp: React.FC = () => {
                 {/* Chat pane */}
                 <div className="flex-1 min-w-0">
                   {!selectedChat ? (
-                    <div className="aether-surface border aether-border rounded-3xl p-8 text-sm text-zinc-400">
+                    <div className="p2pbox-surface border p2pbox-border rounded-3xl p-8 text-sm text-zinc-400">
                       Select a conversation or paste an npub on the left to start a private end-to-end encrypted chat.
                     </div>
                   ) : (
-                    <div className="aether-surface border aether-border rounded-3xl flex flex-col h-[620px]">
+                    <div className="p2pbox-surface border p2pbox-border rounded-3xl flex flex-col h-[620px]">
                       {/* Chat header */}
                       <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
                         <div className="avatar w-9 h-9 cursor-pointer" onClick={() => copy(fullNpub(selectedChat))}>
@@ -1281,7 +1281,7 @@ const AetherApp: React.FC = () => {
 
             {/* RELAYS */}
             {view === 'relays' && (
-              <div className="aether-surface border aether-border rounded-3xl p-6">
+              <div className="p2pbox-surface border p2pbox-border rounded-3xl p-6">
                 <div className="font-semibold mb-1">Connected Relays</div>
                 <div className="text-xs text-zinc-400 mb-4">Your posts and messages are broadcast to these relays. Add your own or friends' relays for stronger reach.</div>
 
@@ -1314,7 +1314,7 @@ const AetherApp: React.FC = () => {
 
             {/* PROFILE EDITOR */}
             {view === 'profile' && pk && (
-              <div className="aether-surface border aether-border rounded-3xl p-6 max-w-xl">
+              <div className="p2pbox-surface border p2pbox-border rounded-3xl p-6 max-w-xl">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="avatar w-14 h-14">
                     <img src={getAvatarUrl(pk, profileForm.picture || getProfilePicture(pk))} alt="" />
@@ -1353,10 +1353,10 @@ const AetherApp: React.FC = () => {
 
           {/* Right context column */}
           <div className="w-72 shrink-0 hidden xl:block">
-            <div className="aether-surface border aether-border rounded-3xl p-4 sticky top-20 text-sm">
+            <div className="p2pbox-surface border p2pbox-border rounded-3xl p-4 sticky top-20 text-sm">
               <div className="uppercase text-xs tracking-widest text-zinc-500 mb-2 px-1">NETWORK</div>
               <div className="text-xs text-zinc-400 leading-relaxed">
-                Aether is a pure client. All data lives on open Nostr relays. Your keys = your identity and your DMs stay private.
+                P2PBOX is a pure client. All data lives on open Nostr relays. Your keys = your identity and your DMs stay private.
               </div>
 
               <div className="my-4 h-px bg-white/10" />
@@ -1393,4 +1393,4 @@ const AetherApp: React.FC = () => {
   )
 }
 
-export default AetherApp
+export default P2PBOXApp

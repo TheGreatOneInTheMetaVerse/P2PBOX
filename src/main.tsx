@@ -1,10 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import AetherApp from './App.tsx'
+import P2PBOXApp from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AetherApp />
+    <P2PBOXApp />
   </StrictMode>,
 )

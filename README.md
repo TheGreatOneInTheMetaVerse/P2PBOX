@@ -1,4 +1,4 @@
-# Aether — P2P Social Chat
+# P2PBOX — Decentralized P2P Social Chat
 
 A beautiful, fully-functional decentralized social + chat webapp built on the **Nostr protocol**.
 
@@ -14,7 +14,7 @@ A beautiful, fully-functional decentralized social + chat webapp built on the **
 ## Run it
 
 ```bash
-cd p2p-social-chat
+cd p2pbox
 npm install
 npm run dev
 ```
