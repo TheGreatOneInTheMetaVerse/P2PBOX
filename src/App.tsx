@@ -204,6 +204,7 @@ const P2PBOXApp: React.FC = () => {
   const [isPublishing, setIsPublishing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [testChatPub, setTestChatPub] = useState<string | null>(null) // for local demo chat
 
   // Nostr
   const poolRef = useRef<SimplePool | null>(null)
@@ -343,11 +344,12 @@ const P2PBOXApp: React.FC = () => {
       try { subRef.current.close() } catch {}
     }
 
-    const since = Math.floor(Date.now() / 1000) - 60 * 60 * 48 // last 48 hours for better discovery
+    const noteSince = Math.floor(Date.now() / 1000) - 60 * 60 * 48 // last 48h for notes
+    const dmSince = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 7 // last 7 days for DMs (catch test messages)
 
     // Public notes + replies
     const noteFilters: Filter[] = [
-      { kinds: [1], limit: 150, since },
+      { kinds: [1], limit: 150, since: noteSince },
       { kinds: [0], authors: [pubkey], limit: 1 },
     ]
     const noteSub = pool.subscribeMany(currentRelays, noteFilters as any, {
@@ -355,10 +357,15 @@ const P2PBOXApp: React.FC = () => {
       oneose() {},
     })
 
+    // Extra broader initial load so new users see real content immediately (no time filter for first batch)
+    pool.querySync(currentRelays, [{ kinds: [1], limit: 80 }]).then((events) => {
+      events.forEach(handleEvent)
+    })
+
     // DMs (both directions)
     const dmFilters: Filter[] = [
-      { kinds: [4], '#p': [pubkey], since },
-      { kinds: [4], authors: [pubkey], since },
+      { kinds: [4], '#p': [pubkey], since: dmSince },
+      { kinds: [4], authors: [pubkey], since: dmSince },
     ]
     const dmSub = pool.subscribeMany(currentRelays, dmFilters as any, {
       onevent(evt) { handleDMEvent(evt, pubkey) },
@@ -566,6 +573,42 @@ const P2PBOXApp: React.FC = () => {
     const text = dmText.trim()
     if (!text || !selectedChat || !pk) return
 
+    // Local test chat simulation (demo only)
+    if (testChatPub && selectedChat === testChatPub) {
+      // Add the "sent" message
+      const outgoing: DM = {
+        id: 'local-out-' + Date.now(),
+        pubkey: testChatPub,
+        created_at: Math.floor(Date.now() / 1000),
+        content: text,
+        outgoing: true,
+        raw: null,
+      }
+      setDms((prev) => [...prev, outgoing])
+      setDmText('')
+
+      // Simulate a quick reply from the test user after a short delay
+      setTimeout(() => {
+        const replies = [
+          "Got it!",
+          "Interesting point.",
+          "Thanks for testing!",
+          "This is working locally.",
+          "Cool, the UI looks good.",
+        ]
+        const reply: DM = {
+          id: 'local-in-' + Date.now(),
+          pubkey: testChatPub,
+          created_at: Math.floor(Date.now() / 1000),
+          content: replies[Math.floor(Math.random() * replies.length)],
+          outgoing: false,
+          raw: null,
+        }
+        setDms((prev) => [...prev, reply])
+      }, 600)
+      return
+    }
+
     const recipient = selectedChat
     let encrypted: string
 
@@ -733,6 +776,7 @@ const P2PBOXApp: React.FC = () => {
     setSelectedChat(null)
     setFollows([])
     setProfiles({})
+    setTestChatPub(null)
     seenIds.current.clear()
     repliesMap.current = {}
     setShowOnboarding(true)
@@ -775,6 +819,28 @@ const P2PBOXApp: React.FC = () => {
     setSelectedChat(targetPub)
     setView('messages')
     fetchProfiles([targetPub], relays)
+  }
+
+  // Local demo chat - lets new users experience the chat UI immediately without external apps or real keys
+  const startLocalTestChat = () => {
+    if (!pk) return
+    const testSk = generateSecretKey()
+    const testPk = getPublicKey(testSk)
+    setTestChatPub(testPk)
+    setSelectedChat(testPk)
+    setView('messages')
+
+    // Add a simulated incoming message from the "test user"
+    const welcome: DM = {
+      id: 'local-test-' + Date.now(),
+      pubkey: testPk,
+      created_at: Math.floor(Date.now() / 1000),
+      content: "Hello! This is a local demo chat (not sent to the real Nostr network). Try sending me a message!",
+      outgoing: false,
+      raw: null,
+    }
+    setDms((prev) => [...prev, welcome])
+    showToast('Started local test chat — messages here stay in this browser tab only', 'info')
   }
 
   // Open profile edit quick
@@ -937,7 +1003,19 @@ const P2PBOXApp: React.FC = () => {
             {/* Relay status */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/5 border border-white/10">
               <div className="relay-dot connected" />
-              <span className="text-xs text-zinc-400">{relays.length} relays</span>
+              <span className="text-xs text-zinc-400">Live on {relays.length} relays</span>
+              <button
+                onClick={() => {
+                  if (pk) {
+                    subscribeAll(pk, relays)
+                    showToast('Reconnecting to relays...', 'info')
+                  }
+                }}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20"
+                title="Reconnect"
+              >
+                ⟳
+              </button>
             </div>
 
             {/* Identity pill */}
@@ -1174,12 +1252,18 @@ const P2PBOXApp: React.FC = () => {
                     <button onClick={() => setSelectedChat(null)} className="text-xs px-2 py-0.5 rounded bg-white/5">New</button>
                   </div>
                   {pk && (
-                    <div className="px-3 pb-2 -mt-1">
+                    <div className="px-3 pb-2 -mt-1 space-y-1">
                       <button
                         onClick={() => copy(fullNpub(pk), 'Your npub copied — send a DM to it from another client to test!')}
                         className="text-[10px] px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 border border-white/10 w-full text-left"
                       >
                         Copy your npub to test DMs from other apps →
+                      </button>
+                      <button
+                        onClick={startLocalTestChat}
+                        className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 w-full text-left text-violet-300"
+                      >
+                        Start local test chat (demo — no network)
                       </button>
                     </div>
                   )}
